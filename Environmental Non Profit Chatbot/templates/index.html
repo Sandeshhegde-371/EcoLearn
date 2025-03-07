@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoLearn - Environmental Educational Material Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- 🌿 Nature-Inspired Header -->
+    <header>
+        <!-- NIE University Logo at Top Left -->
+        <img src="{{ url_for('static', path='images/NIE_University.png') }}" alt="NIE University Logo" class="nie-logo">
+        <!-- IVIS Lab Logo at Top Right -->
+        <img src="{{ url_for('static', path='images/IVIS_logo.png') }}" alt="IVIS LABS Logo" class="ivis-logo">
+        <h1>EcoLearn</h1>
+        <p>Generate engaging educational materials about nature and conservation.</p>
+    </header>
+
+    <!-- 🌱 Input Form -->
+    <div class="container">
+        <div class="form-container">
+            <form id="materialForm">
+
+                <!-- 📜 Topic Input -->
+                <div class="form-group">
+                    <label for="topic"><i class="fas fa-leaf"></i> Enter Your Topic:</label>
+                    <input type="text" id="topic" name="topic" required placeholder="e.g., Forest Conservation">
+                </div>
+
+                <!-- 📖 Number of Materials -->
+                <div class="form-group">
+                    <label for="num_materials"><i class="fas fa-copy"></i> Number of Materials:</label>
+                    <select id="num_materials" name="num_materials">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3" selected>3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                    </select>
+                </div>
+
+                <!-- 🎭 Content Tone -->
+                <div class="form-group">
+                    <label for="tone"><i class="fas fa-paint-brush"></i> Content Tone:</label>
+                    <select id="tone" name="tone">
+                        <option value="educational" selected>Educational</option>
+                        <option value="casual">Casual</option>
+                        <option value="inspirational">Inspirational</option>
+                        <option value="professional">Professional</option>
+                    </select>
+                </div>
+
+                <!-- ✅ Include Outline -->
+                <div class="form-group checkbox">
+                    <input type="checkbox" id="include_outline" name="include_outline" checked>
+                    <label for="include_outline"><i class="fas fa-list-ul"></i> Include Outlines</label>
+                </div>
+
+                <!-- 🧠 Select AI Model -->
+                <div class="form-group">
+                    <label for="model"><i class="fas fa-brain"></i> AI Model:</label>
+                    <select id="model" name="model">
+                        <option value="mistral" selected>mistral</option>
+                    </select>
+                </div>
+
+                <!-- 🍃 Generate Button with Floating Leaf Effect -->
+                <button type="submit" id="generateBtn">
+                    <i class="fas fa-magic"></i> Generate
+                    <span class="leaf"></span>
+                </button>
+            </form>
+        </div>
+
+        <!-- 📜 Results Section -->
+        <div class="results-container" id="resultsContainer" style="display: none;">
+            <h2>Your Educational Materials</h2>
+
+            <div id="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Generating materials...</p>
+            </div>
+
+            <div id="results"></div>
+
+            <!-- 🍂 Floating Leaf Copy Button -->
+            <button id="copyBtn">
+                <i class="fas fa-leaf"></i> Copy to Clipboard
+            </button>
+        </div>
+    </div>
+
+    <!-- 🌍 Footer -->
+    <footer>
+        <p>Made with <i class="fas fa-heart"></i> for a greener planet.</p>
+        <!-- Pulse Logo at Bottom Center -->
+        <img src="{{ url_for('static', path='images/pulse.png') }}" alt="Pulse Logo" class="pulse-logo">
+        <p>Powered by <a href="https://ivislabs.com/" target="_blank">IVIS LABS</a></p>
+
+    </footer>
+
+    <!-- 🌿 JavaScript for Functionality -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/models');
+                const data = await response.json();
+                const modelSelect = document.getElementById('model');
+                
+                modelSelect.innerHTML = '';
+                data.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    modelSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error fetching models:', error);
+            }
+        });
+
+        // Form Submission Handling
+        document.getElementById('materialForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const resultsContainer = document.getElementById('resultsContainer');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+
+            resultsContainer.style.display = 'block';
+            loading.style.display = 'block';
+            results.innerHTML = '';
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                results.innerHTML = formatResponseWithMarkdown(data.generated_materials);
+            } catch (error) {
+                results.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        // Copy to Clipboard
+        document.getElementById('copyBtn').addEventListener('click', () => {
+            const results = document.getElementById('results').innerText;
+            navigator.clipboard.writeText(results).then(() => {
+                const copyBtn = document.getElementById('copyBtn');
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => copyBtn.textContent = 'Copy to Clipboard', 2000);
+            }).catch(err => console.error('Failed to copy:', err));
+        });
+
+        // Format Text with Markdown
+        function formatResponseWithMarkdown(text) {
+            let formatted = text.replace(/\n/g, '<br>');
+            formatted = formatted.replace(/#{1,6}\s+(.*?)(?:<br>|$)/g, '<h3>$1</h3>');
+            formatted = formatted.replace(/(\d+\.\s+)(.*?)(?:<br>|$)/g, '<div class="list-item"><span class="list-number">$1</span>$2</div>');
+            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            return formatted;
+        }
+    </script>
+
+</body>
+</html>
